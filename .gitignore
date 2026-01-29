@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Power BI
+*.pbix
+**/Cache/
+**/Temp/
+**/*.cache
+
+# Data – protect raw & large files
+data/raw/*.xlsx
+data/raw/*.xls
+data/raw/*.xlsm
+data/processed/*.csv      # ← comment this line if you WANT to commit small CSVs
+data/processed/*.parquet
+
+# macOS / Windows junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Editor folders
+.vscode/
+.idea/
