@@ -1,33 +1,32 @@
-# Python
+# Ignore raw and processed data files
+data/raw/*
+data/processed/*
+
+# Ignore Excel files
+*.xls
+*.xlsx
+*.xlsm
+
+# Ignore CSV outputs
+*.csv
+
+# Ignore Python cache and compiled files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
+
+# Ignore virtual environments
 venv/
-.venv/
-pip-log.txt
-pip-delete-this-directory.txt
+.env/
 
-# Power BI
-*.pbix
-**/Cache/
-**/Temp/
-**/*.cache
+# Ignore logs
+*.log
 
-# Data – protect raw & large files
-data/raw/*.xlsx
-data/raw/*.xls
-data/raw/*.xlsm
-data/processed/*.csv      # ← comment this line if you WANT to commit small CSVs
-data/processed/*.parquet
-
-# macOS / Windows junk
+# Ignore system files
 .DS_Store
 Thumbs.db
-ehthumbs.db
 
-# Editor folders
-.vscode/
-.idea/
+# Ignore backup files
+*.bak
+*.swp
