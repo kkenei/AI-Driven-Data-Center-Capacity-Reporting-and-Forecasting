@@ -1,0 +1,20 @@
+# Data manipulation and analysis
+pandas
+numpy
+
+# Forecasting and time series
+prophet
+statsmodels
+
+# Visualization
+plotly
+matplotlib
+seaborn
+
+# Excel file support
+openpyxl
+xlrd
+
+# General utilities
+python-dateutil
+pytz
