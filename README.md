@@ -18,3 +18,10 @@ Data-driven capacity reporting & forecasting for colocation data centers.
 - data/processed/    → cleaned CSVs & forecasts
 - src/python/        → ETL & forecasting scripts
 - src/powerbi/       → Power BI project files (.pbip)
+
+## Latest Progress (January 31, 2026)
+
+- ✅ ETL pipeline stabilized (Facility Power mapping + enrichment order fixed).
+- ✅ KPI Dictionary created and documented in `docs/KPI_Dictionary.md`.
+- ✅ Power BI model designed with star schema for clean drill-downs.
+- ✅ Progress Report added in `docs/Progress_Report.md` for stakeholder visibility.

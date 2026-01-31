@@ -1,83 +1,111 @@
-import pandas as pd
-import glob
+"""
+etl.py
+------
+Monthly-only ETL pipeline for Colocation Capacity Reporting.
+
+This script:
+1. Loads Monthly_Raw and Monthly_Validated sheets from the raw Excel file.
+2. Enriches them with calculated metrics (utilization %, IT load %, PUE, contracted load, energy consumption, carbon emissions, etc.).
+3. Merges design constants from constants.py for each data center.
+4. Exports the enriched validated dataset to CSV for Power BI dashboards.
+"""
+
 import os
-from constants import DATA_CENTERS
+import pandas as pd
+import calendar
+from constants import DATA_CENTERS   # import design metadata (rack density, design capacity, carbon factor, etc.)
 
-# -----------------------------
-# Utility: get latest Excel file in data/raw
-# -----------------------------
-def get_latest_excel():
-    raw_dir = os.path.join(os.path.dirname(__file__), "../../data/raw")
-    files = glob.glob(os.path.join(raw_dir, "*.xlsx"))
-    if not files:
-        raise FileNotFoundError("No Excel files found in data/raw/")
-    return max(files, key=os.path.getctime)
+# --- Project Paths ---
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))  # root of project
+RAW_FILE = os.path.join(PROJECT_ROOT, "data/raw/Colocation_Capacity_Data.xlsx")   # input Excel file
+OUTPUT_FILE = os.path.join(PROJECT_ROOT, "data/enriched/enriched_monthly.csv")    # output enriched CSV
 
-# -----------------------------
-# Function: enrich_daily
-# -----------------------------
-def enrich_daily(dc_name, df):
-    df["Power_Utilization_%"] = (df["Used_Power_kW"] / df["Total_Power_kW"]) * 100
-    df["Rack_Utilization_%"] = (df["Used_Racks"] / df["Total_Racks"]) * 100
-    df["Cooling_Utilization_%"] = (df["Used_Cooling_kW"] / df["Total_Cooling_kW"]) * 100
-    df["Daily_Energy_kWh"] = df["Used_Power_kW"] * 24
-    return df
+# --- Enrichment Function ---
+def enrich(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Enrich a monthly dataframe with calculated metrics and design comparisons.
+    """
 
-# -----------------------------
-# Function: enrich_monthly
-# -----------------------------
-def enrich_monthly(dc_name, df):
-    dc = DATA_CENTERS[dc_name]
-    df["Remaining_Racks"] = dc["SELLABLE_RACKS"] - df["Total_Contracted"]
-    df["Space_Fill_%"] = (df["Total_Contracted"] / dc["SELLABLE_RACKS"]) * 100
-    df["Remaining_Load_kW"] = dc["SELLABLE_LOAD_KW"] - df["Avg_Total_Load"]
-    df["Load_Fill_%"] = (df["Avg_Total_Load"] / dc["SELLABLE_LOAD_KW"]) * 100
-    df["Available_IT_kW"] = dc["DESIGN_IT_CAPACITY_KW"] - df["Avg_IT_Load"]
-    df["Utilization_%"] = (df["Avg_IT_Load"] / dc["DESIGN_IT_CAPACITY_KW"]) * 100
-    df["Energy_kWh"] = df["Avg_Total_Load"] * 730
-    df["Demand_Ratio"] = df["Avg_Total_Load"] / (
-        df["Total_Contracted"] * dc["CONTRACT_DENSITY_KW_PER_RACK"]
+    # Rack Utilization % = (Reserved + Decommissioned racks) ÷ Total contracted racks
+    df["Rack_Utilization_%"] = (
+        (df["Reserved_Racks"] + df["Decommissioned_Racks"])
+        / df["Total_Contracted_Racks"] * 100
     )
-    df["Actual_Density_kW_per_Rack"] = df["Avg_IT_Load"] / df["Total_Contracted"]
+
+    # IT Load % = Average IT load ÷ Average total load
+    df["IT_Load_%"] = df["Avg_IT_Load_kW"] / df["Avg_Total_Load_kW"] * 100
+
+    # Remaining Capacity (racks) = Total contracted racks – (Reserved + Decommissioned)
+    df["Remaining_Capacity"] = (
+        df["Total_Contracted_Racks"] - (df["Reserved_Racks"] + df["Decommissioned_Racks"])
+    )
+
+    # PUE = Average total load ÷ Average IT load
+    df["PUE"] = df["Avg_Total_Load_kW"] / df["Avg_IT_Load_kW"]
+
+    # --- Merge design constants from constants.py ---
+    df["Design_Total_Racks"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Design_Total_Racks"])
+    df["Design_IT_Capacity_kW"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Design_IT_Capacity_kW"])
+    df["Design_Total_Load_kW"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Design_Total_Load_kW"])
+    df["PUE_Target"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["PUE_Target"])
+    df["Rack_Density_kW"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Rack_Density_kW"])
+    df["Rack_Footprint_m2"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Rack_Footprint_m2"])
+    df["Carbon_Factor_tCO2_per_kWh"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Carbon_Factor_tCO2_per_kWh"])
+
+    # --- Derived metrics ---
+    df["Contracted_Load_kW"] = df["Total_Contracted_Racks"] * df["Rack_Density_kW"]
+    df["Contracted_Space_m2"] = df["Total_Contracted_Racks"] * df["Rack_Footprint_m2"]
+    df["Remaining_Load_kW"] = df["Design_IT_Capacity_kW"] - df["Contracted_Load_kW"]
+    df["Remaining_Space_m2"] = df["Design_Total_Racks"] * df["Rack_Footprint_m2"] - df["Contracted_Space_m2"]
+    df["Remaining_Racks"] = df["Design_Total_Racks"] - df["Total_Contracted_Racks"]
+    # Facility Power (kW) = Avg Total Load (kW)
+    df["Facility_Power_kW"] = df["Avg_Total_Load_kW"]
+
+  # Cooling Load (kW) = Facility Power – IT Load
+    df["Cooling_Load_kW"] = df["Facility_Power_kW"] - df["Avg_IT_Load_kW"]
+
+    # --- Energy & Carbon ---
+    # Hours in month based on Reporting_Date
+    df["Hours_in_Month"] = df["Reporting_Date"].apply(lambda d: calendar.monthrange(d.year, d.month)[1] * 24)
+
+    # Energy Consumption (kWh) = Facility Power × Hours in Month
+    df["Energy_Consumption_kWh"] = df["Facility_Power_kW"] * df["Hours_in_Month"]
+
+    # Carbon Emissions (tCO2) = Energy Consumption × Carbon Factor
+    df["Carbon_Emissions_tCO2"] = df["Energy_Consumption_kWh"] * df["Carbon_Factor_tCO2_per_kWh"]
+
+    # --- Ratios & Comparisons ---
+    df["Rack_Utilization_vs_Design_%"] = df["Total_Contracted_Racks"] / df["Design_Total_Racks"] * 100
+    df["IT_Load_vs_Design_%"] = df["Avg_IT_Load_kW"] / df["Design_IT_Capacity_kW"] * 100
+    df["Total_Load_vs_Design_%"] = df["Avg_Total_Load_kW"] / df["Design_Total_Load_kW"] * 100
+    df["PUE_vs_Target"] = df["PUE"] / df["PUE_Target"]
+    df["Fill_Ratio_%"] = df["Contracted_Load_kW"] / df["Design_IT_Capacity_kW"] * 100
+
     return df
 
-# -----------------------------
-# Main ETL Process
-# -----------------------------
+# --- Main ETL Process ---
 def main():
-    latest_file = get_latest_excel()
-    print(f"[INFO] Using latest Excel file: {latest_file}")
+    print("Starting ETL pipeline...")
 
-    # --- Daily Operational Data ---
-    daily_df = pd.read_excel(latest_file, sheet_name="Operational_Daily")
-    enriched_daily = []
-    for dc_name in DATA_CENTERS.keys():
-        dc_df = daily_df[daily_df["DataCenter"] == dc_name].copy()
-        enriched_daily.append(enrich_daily(dc_name, dc_df))
-    final_daily = pd.concat(enriched_daily)
-    final_daily.to_csv("data/processed/enriched_daily.csv", index=False)
-    print("[INFO] Saved enriched_daily.csv")
+    # 1. Load Monthly Sheets from Excel
+    print("Loading raw Excel file...")
+    df_raw = pd.read_excel(RAW_FILE, sheet_name="Monthly_Raw")
+    df_validated = pd.read_excel(RAW_FILE, sheet_name="Monthly_Validated")
 
-    # --- Monthly Validated Data ---
-    monthly_validated_df = pd.read_excel(latest_file, sheet_name="Monthly_Validated")
-    enriched_monthly = []
-    for dc_name in DATA_CENTERS.keys():
-        dc_df = monthly_validated_df[monthly_validated_df["DataCentre"] == dc_name].copy()
-        enriched_monthly.append(enrich_monthly(dc_name, dc_df))
-    final_monthly = pd.concat(enriched_monthly)
-    final_monthly.to_csv("data/processed/enriched_monthly.csv", index=False)
-    print("[INFO] Saved enriched_monthly.csv")
+    # 2. Apply enrichment to both sheets
+    print("Enriching Monthly_Raw...")
+    df_raw_enriched = enrich(df_raw)
 
-    # --- Monthly Raw Data (internal review) ---
-    monthly_raw_df = pd.read_excel(latest_file, sheet_name="Monthly_Raw")
-    enriched_raw = []
-    for dc_name in DATA_CENTERS.keys():
-        dc_df = monthly_raw_df[monthly_raw_df["DataCentre"] == dc_name].copy()
-        enriched_raw.append(enrich_monthly(dc_name, dc_df))
-    final_raw = pd.concat(enriched_raw)
-    final_raw.to_csv("data/processed/enriched_monthly_raw.csv", index=False)
-    print("[INFO] Saved enriched_monthly_raw.csv")
+    print("Enriching Monthly_Validated...")
+    df_validated_enriched = enrich(df_validated)
 
-# Entry point
+    # 3. Export enriched validated dataset to CSV
+    print(f"Exporting enriched dataset to {OUTPUT_FILE}...")
+    os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
+    df_validated_enriched.to_csv(OUTPUT_FILE, index=False)
+
+    print("ETL pipeline complete ✅")
+
+# --- Entry Point ---
 if __name__ == "__main__":
     main()

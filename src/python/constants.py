@@ -1,36 +1,41 @@
 """
 Centralized constants for AI-Driven Data Center Capacity Reporting & Forecasting
-Applicable to multiple colocation sites (DC1, DC2, DC3).
+Applicable to multiple colocation sites (KenyaDC, UgandaDC, TanzaniaDC).
 """
 
 # Facility-level constants per data center
 DATA_CENTERS = {
     "KenyaDC": {
-        "SELLABLE_RACKS": 186,              # Total racks available for sale
-        "CONTRACT_DENSITY_KW_PER_RACK": 5,  # Planned IT load per rack (kW)
-        "DESIGN_IT_CAPACITY_KW": 640,       # Design IT load capacity (kW)
-        "SELLABLE_LOAD_KW": 900,            # Total facility load capacity (kW)
-        "DESIGN_PUE": 1.5                   # Design Power Usage Effectiveness
+        "Design_Total_Racks": 186,              # Total racks available for sale (design capacity)
+        "Design_Total_Footprint_m2": 500,       # Total racks theoretical footprint (m2)
+        "Gross_White_Space_m2": 800,            # Total data center space in m2
+        "Rack_Density_kW": 5,                   # Planned IT load per rack (kW) — used to calculate Contracted Load
+        "Rack_Footprint_m2": 2.7,                # average footprint per rack in square meters
+        "Design_IT_Capacity_kW": 640,           # Design IT load capacity (kW)
+        "Design_Total_Load_kW": 900,            # Total facility load capacity (kW)
+        "PUE_Target": 1.5,                       # Design Power Usage Effectiveness target
+        "Carbon_Factor_tCO2_per_kWh": 0.000226,
     },
     "UgandaDC": {
-        "SELLABLE_RACKS": 200,
-        "CONTRACT_DENSITY_KW_PER_RACK": 5,
-        "DESIGN_IT_CAPACITY_KW": 800,
-        "SELLABLE_LOAD_KW": 1200,
-        "DESIGN_PUE": 1.4
+        "Design_Total_Racks": 200,
+        "Design_Total_Footprint_m2": 540,       # Total racks theoretical footprint (m2)
+        "Gross_White_Space_m2": 850,            # Total data center space in m2
+        "Rack_Density_kW": 5,
+        "Rack_Footprint_m2": 2.7,                # average footprint per rack in square meters
+        "Design_IT_Capacity_kW": 800,
+        "Design_Total_Load_kW": 1200,
+        "PUE_Target": 1.4,
+        "Carbon_Factor_tCO2_per_kWh": 0.000513,
     },
     "TanzaniaDC": {
-        "SELLABLE_RACKS": 150,
-        "CONTRACT_DENSITY_KW_PER_RACK": 5,
-        "DESIGN_IT_CAPACITY_KW": 500,
-        "SELLABLE_LOAD_KW": 750,
-        "DESIGN_PUE": 1.6
+        "Design_Total_Racks": 150,
+        "Design_Total_Footprint_m2": 405,       # Total racks theoretical footprint (m2)
+        "Gross_White_Space_m2": 600,            # Total data center space in m2
+        "Rack_Density_kW": 5,
+        "Rack_Footprint_m2": 2.7,                # average footprint per rack in square meters
+        "Design_IT_Capacity_kW": 500,
+        "Design_Total_Load_kW": 750,
+        "PUE_Target": 1.6,
+        "Carbon_Factor_tCO2_per_kWh": 0.000374,
     }
-}
-
-# Global thresholds for alerts
-ALERT_THRESHOLDS = {
-    "SPACE_FILL_ALERT": 0.75,   # Trigger alert if > 75% racks filled
-    "POWER_FILL_ALERT": 0.80,   # Trigger alert if > 80% power filled
-    "DESIGN_UTIL_ALERT": 0.80   # Trigger alert if > 80% IT design capacity used
 }
