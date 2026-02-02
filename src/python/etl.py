@@ -8,6 +8,8 @@ This script:
 2. Enriches them with calculated metrics (utilization %, IT load %, PUE, contracted load, energy consumption, carbon emissions, etc.).
 3. Merges design constants from constants.py for each data center.
 4. Exports the enriched validated dataset to CSV for Power BI dashboards.
+
+Author: Kenneth @ TippleK Data Centres
 """
 
 import os
@@ -16,16 +18,19 @@ import calendar
 from constants import DATA_CENTERS   # import design metadata (rack density, design capacity, carbon factor, etc.)
 
 # --- Project Paths ---
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))  # root of project
-RAW_FILE = os.path.join(PROJECT_ROOT, "data/raw/Colocation_Capacity_Data.xlsx")   # input Excel file
-OUTPUT_FILE = os.path.join(PROJECT_ROOT, "data/enriched/enriched_monthly.csv")    # output enriched CSV
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+RAW_FILE = os.path.join(PROJECT_ROOT, "data/raw/Colocation_Capacity_Data.xlsx")
+OUTPUT_FILE = os.path.join(PROJECT_ROOT, "data/enriched/enriched_monthly.csv")
 
 # --- Enrichment Function ---
 def enrich(df: pd.DataFrame) -> pd.DataFrame:
     """
     Enrich a monthly dataframe with calculated metrics and design comparisons.
+    Business context: aligns raw operational data with design constants
+    and produces KPIs for executive dashboards.
     """
 
+    # --- Operational KPIs ---
     # Rack Utilization % = (Reserved + Decommissioned racks) ÷ Total contracted racks
     df["Rack_Utilization_%"] = (
         (df["Reserved_Racks"] + df["Decommissioned_Racks"])
@@ -40,11 +45,13 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
         df["Total_Contracted_Racks"] - (df["Reserved_Racks"] + df["Decommissioned_Racks"])
     )
 
-    # PUE = Average total load ÷ Average IT load
+    # PUE (Power Usage Effectiveness) = Average total load ÷ Average IT load
     df["PUE"] = df["Avg_Total_Load_kW"] / df["Avg_IT_Load_kW"]
 
     # --- Merge design constants from constants.py ---
+    # These values anchor operational metrics against design capacity
     df["Design_Total_Racks"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Design_Total_Racks"])
+    df["Design_Total_Footprint_m2"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Design_Total_Footprint_m2"])
     df["Design_IT_Capacity_kW"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Design_IT_Capacity_kW"])
     df["Design_Total_Load_kW"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Design_Total_Load_kW"])
     df["PUE_Target"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["PUE_Target"])
@@ -52,16 +59,33 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
     df["Rack_Footprint_m2"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Rack_Footprint_m2"])
     df["Carbon_Factor_tCO2_per_kWh"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Carbon_Factor_tCO2_per_kWh"])
 
+    # --- Derived design denominators ---
+    # Gross white space (executive denominator)
+    df["Design_Space_m2"] = df["Data_Center_Name"].map(lambda dc: DATA_CENTERS[dc]["Gross_White_Space_m2"])
+
+    # Rack footprint space (technical denominator)
+    df["Design_Space_Racks"] = df["Design_Total_Racks"] * df["Rack_Footprint_m2"]
+
     # --- Derived metrics ---
+    # Contracted load = racks sold × rack density
     df["Contracted_Load_kW"] = df["Total_Contracted_Racks"] * df["Rack_Density_kW"]
+
+    # Contracted space = racks sold × rack footprint
     df["Contracted_Space_m2"] = df["Total_Contracted_Racks"] * df["Rack_Footprint_m2"]
+
+    # Remaining load = design IT capacity – contracted load
     df["Remaining_Load_kW"] = df["Design_IT_Capacity_kW"] - df["Contracted_Load_kW"]
-    df["Remaining_Space_m2"] = df["Design_Total_Racks"] * df["Rack_Footprint_m2"] - df["Contracted_Space_m2"]
+
+    # Remaining space = design rack footprint – contracted space
+    df["Remaining_Space_m2"] = df["Design_Space_Racks"] - df["Contracted_Space_m2"]
+
+    # Remaining racks = design racks – contracted racks
     df["Remaining_Racks"] = df["Design_Total_Racks"] - df["Total_Contracted_Racks"]
+
     # Facility Power (kW) = Avg Total Load (kW)
     df["Facility_Power_kW"] = df["Avg_Total_Load_kW"]
 
-  # Cooling Load (kW) = Facility Power – IT Load
+    # Cooling Load (kW) = Facility Power – IT Load
     df["Cooling_Load_kW"] = df["Facility_Power_kW"] - df["Avg_IT_Load_kW"]
 
     # --- Energy & Carbon ---
@@ -80,6 +104,12 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
     df["Total_Load_vs_Design_%"] = df["Avg_Total_Load_kW"] / df["Design_Total_Load_kW"] * 100
     df["PUE_vs_Target"] = df["PUE"] / df["PUE_Target"]
     df["Fill_Ratio_%"] = df["Contracted_Load_kW"] / df["Design_IT_Capacity_kW"] * 100
+
+    # Remaining vs design space (gross white space)
+    df["Remaining_vs_Design_%"] = df["Remaining_Space_m2"] / df["Design_Space_m2"] * 100
+
+    # Remaining vs design rack footprint space
+    df["Remaining_vs_Design_Racks_%"] = df["Remaining_Space_m2"] / df["Design_Space_Racks"] * 100
 
     return df
 
