@@ -1,11 +1,11 @@
 """
 Centralized constants for AI-Driven Data Center Capacity Reporting & Forecasting
-Applicable to multiple colocation sites (DC-One, DC-Two, DC-Three).
+Applicable to multiple colocation sites (KenyaDC, UgandaDC, TanzaniaDC).
 """
 
 # Facility-level constants per data center
 DATA_CENTERS = {
-    "DC-One": {
+    "KenyaDC": {
         "Design_Total_Racks": 300,              # Total racks available for sale (design capacity)
         "Design_Total_Footprint_m2": 810,       # Total racks theoretical footprint (m2)
         "Gross_White_Space_m2": 900,            # Total data center space in m2
@@ -15,9 +15,8 @@ DATA_CENTERS = {
         "Design_Total_Load_kW": 2100,            # Total facility load capacity (kW)
         "PUE_Target": 1.5,                       # Design Power Usage Effectiveness target
         "Carbon_Factor_tCO2_per_kWh": 0.000226,
-       
     },
-    "DC-Two": {
+    "UgandaDC": {
         "Design_Total_Racks": 200,
         "Design_Total_Footprint_m2": 540,       # Total racks theoretical footprint (m2)
         "Gross_White_Space_m2": 600,            # Total data center space in m2
@@ -28,7 +27,7 @@ DATA_CENTERS = {
         "PUE_Target": 1.4,
         "Carbon_Factor_tCO2_per_kWh": 0.000513,
     },
-    "DC-Three": {
+    "TanzaniaDC": {
         "Design_Total_Racks": 250,
         "Design_Total_Footprint_m2": 675,       # Total racks theoretical footprint (m2)
         "Gross_White_Space_m2": 750,            # Total data center space in m2

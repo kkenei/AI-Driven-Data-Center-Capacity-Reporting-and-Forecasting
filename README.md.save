@@ -1,0 +1,51 @@
+
+# AI-Driven-Data-Center-Capacity-Reporting-and-Forecasting
+
+From raw data to executive insights — automated capacity forecasting for colocation data centres.
+
+---
+
+## 📘 Overview
+This repository provides a robust, automated pipeline for **capacity reporting and forecasting** in colocation data centers. It transforms raw Excel inputs into enriched datasets, applies advanced forecasting models, and integrates with **Power BI dashboards** to deliver clear, actionable insights on utilization, efficiency, and future capacity trends.
+
+The project bridges **data engineering** and **executive-ready reporting**, enabling organizations to move beyond static spreadsheets toward scalable, AI-driven workflows.
+
+---
+
+## ⚙️ Features
+- 🔄 **Automated ETL**: Cleans and enriches raw operational data.
+- 📈 **Forecasting Engine**: Uses Prophet and Pandas to predict rack utilization and load efficiency.
+- 📊 **Power BI Dashboards**: Interactive visualizations for executives and stakeholders.
+- ⚡ **Hybrid Workflow**: Seamlessly integrates local Excel files, VPS-based processing, and cloud-ready outputs.
+- 🛡️ **Maintainability**: Modular scripts, clear directory structure, and `.gitignore` rules to keep the repo lightweight.
+
+---
+
+## 🪜 Installation
+
+### Step 1: Clone the repository
+```bash
+git clone git@github.com:kkenei/AI-Driven-Data-Center-Capacity-Reporting-and-Forecasting.git
+cd AI-Driven-Data-Center-Capacity-Reporting-and-Forecasting
+
+
+Data-driven capacity reporting & forecasting for colocation data centers.
+
+## Current stack
+- Source data: Excel
+- Processing & forecasting: Python (pandas + prophet)
+- Visualization: Power BI (.pbip format)
+- Version control: Git
+
+## Quick start (on this server)
+1. Activate virtual environment:   `source .venv/bin/activate`
+2. Install dependencies:           `pip install -r src/python/requirements.txt`
+3. Run ETL:                        `python src/python/01_etl_clean.py`
+
+## Folder structure
+- data/raw/          → original Excel files (not committed)
+- data/processed/    → cleaned CSVs & forecasts
+- src/python/        → ETL & forecasting scripts
+- src/powerbi/       → Power BI project files (.pbip)
+
+

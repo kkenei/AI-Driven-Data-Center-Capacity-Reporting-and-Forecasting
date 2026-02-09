@@ -7,8 +7,7 @@ This script:
 1. Loads Monthly_Raw and Monthly_Validated sheets from the raw Excel file.
 2. Enriches them with calculated metrics (utilization %, IT load %, PUE, contracted load, energy consumption, carbon emissions, etc.).
 3. Merges design constants from constants.py for each data center.
-4. Generates extended Prophet forecasts (120 months horizon) for contracted racks,
-   using logistic growth with capacity set to design rack totals.
+4. Generates extended Prophet forecasts (36 months horizon) for contracted racks.
 5. Exports both enriched validated dataset and forecast dataset to CSV for Power BI dashboards.
 
 Author: Kenneth @ TippleK Data Centres
@@ -85,11 +84,10 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-# --- Forecast Function with Logistic Growth ---
+# --- Forecast Function ---
 def forecast_racks(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Generate a 120-month forecast of Total_Contracted_Racks using Prophet.
-    Uses logistic growth with capacity set to design rack totals.
+    Generate a 36-month forecast of Total_Contracted_Racks using Prophet.
     Produces baseline, lower, and upper confidence intervals.
     """
 
@@ -99,23 +97,17 @@ def forecast_racks(df: pd.DataFrame) -> pd.DataFrame:
             columns={"Reporting_Date": "ds", "Total_Contracted_Racks": "y"}
         )
 
-        # Add capacity column for logistic growth
-        cap_value = DATA_CENTERS[dc]["Design_Total_Racks"]
-        dc_df["cap"] = cap_value
-
-        # Fit Prophet model with logistic growth
-        model = Prophet(growth="logistic")
+        # Fit Prophet model
+        model = Prophet()
         model.fit(dc_df)
 
-        # Extend horizon to 120 months (10 years)
+        # Extend horizon to 36 months
         future = model.make_future_dataframe(periods=120, freq="ME")
-        future["cap"] = cap_value
-
         forecast = model.predict(future)
 
         # Add metadata
         forecast["Metric"] = "Total_Contracted_Racks"
-        forecast["Horizon"] = "120m"
+        forecast["Horizon"] = "36m"
         forecast["Data_Center_Name"] = dc
 
         forecasts.append(forecast[["ds", "yhat", "yhat_lower", "yhat_upper", "Metric", "Horizon", "Data_Center_Name"]])
@@ -140,8 +132,8 @@ def main():
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     df_validated_enriched.to_csv(OUTPUT_FILE, index=False)
 
-    # 4. Generate extended forecast (120 months, logistic growth)
-    print("Generating 120-month forecast with logistic growth...")
+    # 4. Generate extended forecast (36 months)
+    print("Generating 36-month forecast...")
     df_forecast = forecast_racks(df_validated)
 
     # 5. Export forecast dataset
